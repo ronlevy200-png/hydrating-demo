@@ -93,6 +93,11 @@
     .btn-simulate {
       background: linear-gradient(135deg, #1976d2, #1565c0);
       color: white;
+      margin-bottom: 12px;
+    }
+    .btn-reset {
+      background: linear-gradient(135deg, #43a047, #2e7d32);
+      color: white;
     }
 
     .log {
@@ -157,6 +162,7 @@
 
   <button class="btn btn-alert" onclick="forceAlert()">🚨 Force Alert (Demo)</button>
   <button class="btn btn-simulate" onclick="simulateDehydration()">💧 Simulate Dehydration Reading</button>
+  <button class="btn btn-reset" onclick="resetNormal()">✅ Reset to Normal</button>
 
   <div class="log" id="log">Readings update automatically every 5 seconds</div>
 
@@ -252,6 +258,12 @@
       document.getElementById('log').textContent = '⚠️ Dehydration reading simulated';
       // auto-recover after 15 s
       setTimeout(normalReading, 15000);
+    }
+
+    // ── Reset to normal ────────────────────────────────────────────────────
+    function resetNormal() {
+      normalReading();
+      document.getElementById('log').textContent = '✅ Reset to normal readings';
     }
 
     // ── Force alert ────────────────────────────────────────────────────────
