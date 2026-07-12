@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HydRating – Patient</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+      min-height: 100vh;
+    }
+    h1 { font-size: 22px; color: #1a3c5e; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #666; margin-bottom: 24px; }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      margin-bottom: 16px;
+    }
+    .card h2 { font-size: 14px; color: #555; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .readings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .reading-box {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 14px 12px;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: border-color 0.3s, background 0.3s;
+    }
+    .reading-box.elevated { border-color: #ffb300; background: #fff8e1; }
+    .reading-box.critical { border-color: #e53935; background: #fce4ec; }
+    .reading-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+    .reading-value { font-size: 26px; font-weight: bold; color: #1a3c5e; }
+    .reading-unit { font-size: 11px; color: #aaa; }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .status-normal { background: #e8f5e9; color: #2e7d32; }
+    .status-warning { background: #fff8e1; color: #f57f17; }
+    .status-alert   { background: #fce4ec; color: #c62828; }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-normal  { background: #43a047; }
+    .dot-warning { background: #ffb300; animation: pulse 1s infinite; }
+    .dot-alert   { background: #e53935; animation: pulse 0.6s infinite; }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+
+    .btn {
+      width: 100%;
+      max-width: 380px;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.1s;
+    }
+    .btn:active { transform: scale(0.97); opacity: 0.85; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-alert {
+      background: linear-gradient(135deg, #e53935, #c62828);
+      color: white;
+      margin-bottom: 10px;
+    }
+    .btn-warning {
+      background: linear-gradient(135deg, #ffb300, #f57f17);
+      color: white;
+      margin-bottom: 10px;
+    }
+    .btn-reset {
+      background: white;
+      color: #555;
+      border: 1.5px solid #ccc;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 10px;
+    }
+
+    .log {
+      width: 100%;
+      max-width: 380px;
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    .firebase-status {
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+    .fs-connected    { background: #e8f5e9; color: #2e7d32; }
+    .fs-disconnected { background: #fce4ec; color: #c62828; }
+  </style>
+</head>
+<body>
+
+  <h1>💧 HydRating</h1>
+  <p class="subtitle" id="greeting">Good morning, Moshe 👋 — Sensor Simulator</p>
+
+  <div id="firebaseStatus" class="firebase-status fs-disconnected">⏳ Connecting…</div>
+
+  <div class="card">
+    <h2>Live Sensor Readings</h2>
+    <div class="readings-grid">
+      <div class="reading-box" id="box-hr">
+        <div class="reading-label">Heart Rate</div>
+        <div class="reading-value" id="hr">72</div>
+        <div class="reading-unit">bpm</div>
+      </div>
+      <div class="reading-box" id="box-temp">
+        <div class="reading-label">Temperature</div>
+        <div class="reading-value" id="temp">36.6</div>
+        <div class="reading-unit">°C</div>
+      </div>
+      <div class="reading-box" id="box-spo2">
+        <div class="reading-label">SpO₂</div>
+        <div class="reading-value" id="spo2">98</div>
+        <div class="reading-unit">%</div>
+      </div>
+      <div class="reading-box" id="box-hydration">
+        <div class="reading-label">Hydration Index</div>
+        <div class="reading-value" id="hydration">82</div>
+        <div class="reading-unit">/ 100</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Risk Status</h2>
+    <div class="status-bar status-normal" id="statusBar">
+      <div class="dot dot-normal" id="statusDot"></div>
+      <span id="statusText">Normal — No risk detected</span>
+    </div>
+  </div>
+
+  <!-- FR-P02: Force Alert (critical) -->
+  <button class="btn btn-alert" id="alertBtn">🚨 Force Alert (Critical)</button>
+  <!-- FR-P03: Simulate Dehydration (warning) -->
+  <button class="btn btn-warning" id="warnBtn">⚠️ Simulate Dehydration (Warning)</button>
+  <!-- Manual override for live-demo pacing; auto-recovery below still applies without pressing this -->
+  <button class="btn btn-reset" id="resetBtn" disabled>↩ Reset to Normal Now</button>
+
+  <div class="log" id="log">Readings update automatically every 5 seconds</div>
+
+  <!-- Firebase v8 compat CDN -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDaZ4qBz6XWbDmy853hs6EbI4cSZrqhgnk",
+      authDomain: "hydrating-demo.firebaseapp.com",
+      databaseURL: "https://hydrating-demo-default-rtdb.firebaseio.com",
+      projectId: "hydrating-demo",
+      storageBucket: "hydrating-demo.firebasestorage.app",
+      messagingSenderId: "689953356629",
+      appId: "1:689953356629:web:64a7cfc322884b2edb8ddc",
+      measurementId: "G-0HZP1Z7X1E"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const patientRef = db.ref('patient');
+
+    const PATIENT_NAME = 'Moshe Levy';
+    document.getElementById('greeting').textContent = `Good morning, ${PATIENT_NAME.split(' ')[0]} 👋 — Sensor Simulator`;
+
+    // Same thresholds as caregiver.html (Ex9 Requirements v1.2, section 6) —
+    // used here just to color-code the metric boxes for the wearer/demo,
+    // not to drive any decision logic (that lives on the caregiver side).
+    const THRESHOLDS = {
+      hr:        { warn: 90,  crit: 100 },
+      temp:      { warn: 37.3, crit: 38.0 },
+      spo2:      { warn: 95,  crit: 93  },   // below these
+      hydration: { warn: 65,  crit: 40  }    // below these
+    };
+
+    function cardClass(metric, value) {
+      const t = THRESHOLDS[metric];
+      if (metric === 'spo2' || metric === 'hydration') {
+        if (value <= t.crit) return 'critical';
+        if (value <= t.warn) return 'elevated';
+      } else {
+        if (value >= t.crit) return 'critical';
+        if (value >= t.warn) return 'elevated';
+      }
+      return '';
+    }
+
+    // ── Connection status ──────────────────────────────────────────────────
+    db.ref('.info/connected').on('value', snap => {
+      const el = document.getElementById('firebaseStatus');
+      if (snap.val()) {
+        el.textContent = '🟢 Connected to Firebase';
+        el.className = 'firebase-status fs-connected';
+      } else {
+        el.textContent = '🔴 Disconnected';
+        el.className = 'firebase-status fs-disconnected';
+      }
+    });
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function rand(base, delta) {
+      return +(base + (Math.random() * 2 - 1) * delta).toFixed(1);
+    }
+
+    function setStatus(level) {
+      const bar  = document.getElementById('statusBar');
+      const dot  = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      bar.className  = 'status-bar status-' + level;
+      dot.className  = 'dot dot-' + level;
+      const labels = {
+        normal:  'Normal — No risk detected',
+        warning: '⚠️ Warning — Mild dehydration risk',
+        alert:   '🚨 ALERT — High dehydration risk!'
+      };
+      text.textContent = labels[level];
+    }
+
+    function pushReading(data) {
+      patientRef.set(data);
+      document.getElementById('hr').textContent        = data.heartRate;
+      document.getElementById('temp').textContent      = data.temperature;
+      document.getElementById('spo2').textContent      = data.spo2;
+      document.getElementById('hydration').textContent = data.hydrationIndex;
+      setStatus(data.riskLevel);
+
+      document.getElementById('box-hr').className        = 'reading-box ' + cardClass('hr', data.heartRate);
+      document.getElementById('box-temp').className      = 'reading-box ' + cardClass('temp', data.temperature);
+      document.getElementById('box-spo2').className      = 'reading-box ' + cardClass('spo2', data.spo2);
+      document.getElementById('box-hydration').className = 'reading-box ' + cardClass('hydration', data.hydrationIndex);
+    }
+
+    // ── Reading generators per FR-P01 (normal) / FR-P02 (critical) / FR-P03 (warning) ──
+    function readingFor(mode) {
+      if (mode === 'alert') {
+        return {
+          heartRate:      rand(108, 4),
+          temperature:    rand(38.3, 0.1),
+          spo2:           rand(91, 1),
+          hydrationIndex: rand(28, 5),
+          riskLevel:      'alert',
+          alert:          true,
+          timestamp:      Date.now()
+        };
+      }
+      if (mode === 'warning') {
+        return {
+          heartRate:      rand(93, 3),
+          temperature:    rand(37.4, 0.08),
+          spo2:           rand(94, 1),
+          hydrationIndex: rand(60, 5),
+          riskLevel:      'warning',
+          alert:          false,
+          timestamp:      Date.now()
+        };
+      }
+      return {
+        heartRate:      rand(72, 4),
+        temperature:    rand(36.6, 0.1),
+        spo2:           rand(98, 1),
+        hydrationIndex: rand(82, 3),
+        riskLevel:      'normal',
+        alert:          false,
+        timestamp:      Date.now()
+      };
+    }
+
+    // ── State machine: normal | warning | alert ───────────────────────────
+    // Warning episodes are mild and auto-recover on their own (FR-P06),
+    // simulating the patient drinking water — matching HydRating's passive
+    // design (US-01). Critical alerts persist until a human checks them:
+    // either the caregiver acknowledges the alert (FR-C07) or this device
+    // is manually reset — they never silently clear themselves.
+    let mode = 'normal';
+    let revertTimeout = null;
+    let pushIntervalId = null;
+    let currentAlertStartTs = null; // stable ID for the current alert episode
+
+    function setButtonsForEpisode(inEpisode) {
+      document.getElementById('alertBtn').disabled = inEpisode;
+      document.getElementById('warnBtn').disabled  = inEpisode;
+      document.getElementById('resetBtn').disabled = !inEpisode;
+    }
+
+    function tick() {
+      const data = readingFor(mode);
+      data.patientName = PATIENT_NAME;
+      // alertStartTs stays constant for the whole alert episode so the
+      // caregiver app can tell "still the same alert" apart from "a new
+      // one just started" — fixes the alert banner re-popping after the
+      // caregiver already acknowledged it.
+      data.alertStartTs = mode === 'alert' ? currentAlertStartTs : null;
+      pushReading(data);
+    }
+
+    function triggerEpisode(newMode, revertSeconds) {
+      if (mode !== 'normal') return; // one episode at a time
+      mode = newMode;
+      if (newMode === 'alert') currentAlertStartTs = Date.now();
+      setButtonsForEpisode(true);
+      tick(); // immediate push, satisfies "within 5 seconds" (NFR-01/AC-01)
+
+      clearTimeout(revertTimeout);
+
+      if (newMode === 'alert') {
+        // Critical alerts do NOT auto-clear: they persist (patient device
+        // keeps reporting alert-level readings every 5s) until the caregiver
+        // actively acknowledges/dismisses it (FR-C07) or this device is
+        // manually reset. This matches HydRating's design intent — a
+        // critical signal should always be checked by a human, not silently
+        // resolve itself.
+        document.getElementById('log').textContent =
+          '🚨 Alert active — persists until caregiver acknowledges (or Reset below)';
+      } else {
+        // Warning-level episodes are mild and auto-recover on their own,
+        // simulating the patient simply drinking water (FR-P06).
+        document.getElementById('log').textContent =
+          `⚠️ Warning active — mild dehydration simulated — auto-recovers in ~${revertSeconds}s`;
+        revertTimeout = setTimeout(() => recoverToNormal(true), revertSeconds * 1000);
+      }
+    }
+
+    function recoverToNormal(auto) {
+      clearTimeout(revertTimeout);
+      mode = 'normal';
+      currentAlertStartTs = null;
+      setButtonsForEpisode(false);
+      tick();
+      document.getElementById('log').textContent =
+        (auto ? '✅ Auto-recovered to normal (simulating patient drinking water)'
+              : '✅ Manually reset to normal') + ' — Last sync: ' + new Date().toLocaleTimeString();
+    }
+
+    document.getElementById('alertBtn').addEventListener('click', () => triggerEpisode('alert', null));
+    document.getElementById('warnBtn').addEventListener('click', () => triggerEpisode('warning', 15));
+    document.getElementById('resetBtn').addEventListener('click', () => recoverToNormal(false));
+
+    // ── Continuous 5-second reporting loop (FR-P01) ───────────────────────
+    tick();
+    pushIntervalId = setInterval(tick, 5000);
+  </script>
+</body>
+</html>
